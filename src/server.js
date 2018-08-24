@@ -1,6 +1,7 @@
 /* const express = require('express'); Première mamnière de faire*/
 import express from 'express'
 import bodyParser from 'body-parser'
+//import { validVariable } from './test'
 const app = express();
 const fs = require("fs")
 
@@ -35,15 +36,35 @@ app.get('/Movies',
 );
 
 app.post('/Movies',
-  (req, res) => {
-    //#1 id du film
-    const id = Date.now()
-/*     const title = req.body.title
-    const imagesURL = req.body.imagesURL
-    const synopsis = req.body.synopsis */
+(req, res) => {
+  const { title, imagesURL, synopsis } = req.body
+  const id = Date.now()
 
-    const { title, imagesURL, synopsis } = req.body
+  function validateField(field, msg) {
+    if(!field || field.trim().length === 0) {
+      errors.push(msg)
+    }
+  }
 
+  const errors = []
+  validateField(title, 'Titre Obligatoire')
+  validateField(imagesURL, 'Image Obligatoire')
+  validateField(synopsis, 'Synopsis Obligatoire')
+  if (errors.length > 0) return res.status(400).send(errors)
+
+  function validVariable(input) {
+    return (typeof input !== 'undefined') && input;
+  }
+  if (!validVariable (title)) {
+      res.send("Not Valid");
+  }
+  if (!validVariable (imagesURL)) {
+      res.send("Not Valid");
+  }   
+  if (!validVariable (synopsis)) {
+      res.send("Not Valid");
+  }
+    
     const newMovie = {id, title, imagesURL, synopsis }
     console.log(newMovie)
 
