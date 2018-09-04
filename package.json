@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "express": "^4.16.3",
+    "mongoose": "^5.2.12",
     "socket.io": "^2.1.1"
   }
 }

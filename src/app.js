@@ -1,8 +1,8 @@
 import express from 'express'
 import bodyParser from 'body-parser'
 import config from 'config'
-import fs from 'fs'
 import socketio from 'socket.io'
+import { Movie } from './db/movie.model'
 //import { validVariable } from './test'
 const app = express();
 const io = socketio(5010)
@@ -22,24 +22,14 @@ app.use(bodyParser.json())
 
 app.use('/images', express.static('public/images'));
 
-
 app.get('/Movies', 
-  (req, res) => {
-    let rawdata = fs.readFileSync(config.get("fichierJSON"))
-    let movies = JSON.parse(rawdata)
-    const filteredMovies = movies.map(movie => {
-      return {
-        id: movie.id,
-        title: movie.title,
-        imagesURL: movie.imagesURL
-      }
-    })
+  async (req, res) => {
+    const filteredMovies = await Movie.find({}).select('-synopsis')
     res.send(filteredMovies)
   }
 );
 
-app.post('/Movies',
-(req, res) => {
+app.post('/Movies', async (req, res) => {
   const { title, imagesURL, synopsis, id } = req.body
   
   function validateField(field, msg) {
@@ -54,15 +44,9 @@ app.post('/Movies',
   validateField(synopsis, 'Synopsis Obligatoire')
   if (errors.length > 0) return res.status(400).send(errors)
   
-  // lecture fichier
-  const rawdata = fs.readFileSync(config.get('fichierJSON'))
-  const movies = JSON.parse(rawdata)
-  
   let savedMovie
   if(id) {
-    savedMovie = movies.find(movie => {
-      return movie.id == id
-    })
+    savedMovie = await Movie.findById(parseInt(id))
     if(!savedMovie) {
       return res.status(404).send("Echec de l'update")
     }
@@ -71,22 +55,16 @@ app.post('/Movies',
     savedMovie.synopsis = synopsis
     io.emit('update-movie', savedMovie)
   } else {
-    savedMovie = { id: Date.now(), title, imagesURL, synopsis }
+    savedMovie = new Movie({ title, imagesURL, synopsis })
     io.emit('insert-movie', savedMovie)
-    movies.push(savedMovie)
   }
-    //#2 ecriture fichier
-    fs.writeFileSync(config.get('fichierJSON'), JSON.stringify(movies))
-    res.send(savedMovie)
+  await savedMovie.save()
+  res.send(savedMovie)
 })
 
 app.get('/filtreMovies/:id',
-  (req, res) => {
-    let rawdata = fs.readFileSync(config.get('fichierJSON'))
-    let movies = JSON.parse(rawdata)
-    const movie = movies.find(movie => {
-      return movie.id == req.params.id
-    })
+  async (req, res) => {
+    const movie = await Movie.findById(parseInt(req.params.id))
     if(!movie) {
       return res.status(404).send('Film introuvable')
     }
@@ -95,18 +73,9 @@ app.get('/filtreMovies/:id',
 )
 
 app.delete('/Delete/:id', 
-  (req, res) => {
-    let rawdata = fs.readFileSync(config.get('fichierJSON'))
-    let movies = JSON.parse(rawdata)
-    const movie = movies.find(movie => {
-      return movie.id == req.params.id
-    })
-    if(!movie) {
-      return res.status(404).send('Echec de la suppression')
-    }
-    movies.splice(movies.indexOf(movie), 1)
+  async(req, res) => {
+    const movie = await Movie.deleteOne({ _id: parseInt(req.params.id) })
     io.emit('delete-movie', movie.id)
-    fs.writeFileSync(config.get('fichierJSON'), JSON.stringify(movies))
     res.status(204).send('Film DELETE !')
   }
 )
